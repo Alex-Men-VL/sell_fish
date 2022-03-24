@@ -14,7 +14,7 @@ def generate_keyboard_markup(buttons: dict):
     keyboard = []
     for button_name, button_id in buttons.items():
         keyboard.append(
-            [InlineKeyboardButton(button_name, callback_data=button_id)]
+            [InlineKeyboardButton(text=button_name, callback_data=button_id)]
         )
 
     return InlineKeyboardMarkup(keyboard)

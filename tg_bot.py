@@ -3,7 +3,8 @@ from datetime import datetime
 from textwrap import dedent
 
 from environs import Env
-from telegram import Bot, BotCommand
+from telegram import Bot, BotCommand, InlineKeyboardButton, \
+    InlineKeyboardMarkup
 from telegram.ext import (
     Updater,
     CallbackQueryHandler,
@@ -27,26 +28,25 @@ from tg_lib import (
 logger = logging.getLogger(__file__)
 
 
-def handle_start_message(update, context):
+def handle_start(update, context):
     reply_markup = get_products_menu(context.bot_data['moltin_token'])
-    update.message.reply_text(text='Please choose :',
+    update.message.reply_text(text='Please choose:',
                               reply_markup=reply_markup)
+    context.user_data['reply_markup'] = reply_markup
     return 'HANDLE_MENU'
 
 
-def handle_users_choice(update, context):
-    query = update.callback_query
+def handle_menu(update, context):
+    product_id = context.user_data['user_reply']
     moltin_token = context.bot_data['moltin_token']
-    product = get_product(moltin_token, query.data)
 
+    product = get_product(moltin_token, product_id)
     product_description = parse_product(product)
-    send_product_description(context, product_description,
-                             query.message.chat_id, query.message.message_id)
-    return 'START'
+    send_product_description(context, product_description)
+    return 'HANDLE_DESCRIPTION'
 
 
-def send_product_description(context, product_description,
-                             chat_id, message_id):
+def send_product_description(context, product_description):
     message = f'''\
     {product_description['name']}
 
@@ -55,6 +55,12 @@ def send_product_description(context, product_description,
     
     {product_description['description']}
     '''
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+
+    reply_markup = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(text='Назад', callback_data='menu')]]
+    )
 
     if image_id := product_description['image_id']:
         context.bot.send_chat_action(chat_id=chat_id,
@@ -62,26 +68,53 @@ def send_product_description(context, product_description,
 
         moltin_token = context.bot_data['moltin_token']
         img_url = get_product_main_image_url(moltin_token, image_id)
+
         context.bot.delete_message(chat_id=chat_id,
                                    message_id=message_id)
         context.bot.send_photo(chat_id=chat_id,
                                photo=img_url,
-                               caption=dedent(message))
+                               caption=dedent(message),
+                               reply_markup=reply_markup)
     else:
-        context.bot.edit_message_text(dedent(message),
+        context.bot.edit_message_text(text=dedent(message),
                                       chat_id=chat_id,
-                                      message_id=message_id)
+                                      message_id=message_id,
+                                      reply_markup=reply_markup)
+
+
+def handle_description(update, context):
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+
+    if context.user_data['user_reply'] == 'menu':
+        reply_markup = context.user_data['reply_markup']
+        context.bot.delete_message(chat_id=chat_id,
+                                   message_id=message_id)
+        context.bot.send_message(text='Please choose:',
+                                 chat_id=chat_id,
+                                 reply_markup=reply_markup)
+        return 'HANDLE_MENU'
 
 
 def handle_users_reply(update, context):
-    if update.message:
-        user_reply = update.message.text
-        chat_id = update.message.chat_id
-    elif update.callback_query:
-        user_reply = update.callback_query.data
-        chat_id = update.callback_query.message.chat_id
+    if message := update.message:
+        user_reply = message.text
+        chat_id = message.chat_id
+        message_id = message.message_id
+    elif query := update.callback_query:
+        user_reply = query.data
+        chat_id = query.chat_id
+        message_id = query.message.message_id
     else:
         return
+
+    context.user_data.update(
+        {
+            'user_reply': user_reply,
+            'chat_id': chat_id,
+            'message_id': message_id
+        }
+    )
 
     moltin_token_expiration = context.bot_data['token_expiration']
     if moltin_token_expiration <= datetime.timestamp(datetime.now()):
@@ -102,8 +135,9 @@ def handle_users_reply(update, context):
         user_state = context.user_data['state']
 
     states_functions = {
-        'START': handle_start_message,
-        'HANDLE_MENU': handle_users_choice
+        'START': handle_start,
+        'HANDLE_MENU': handle_menu,
+        'HANDLE_DESCRIPTION': handle_description
     }
     state_handler = states_functions[user_state]
 
