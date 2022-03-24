@@ -71,7 +71,7 @@ def main():
     products = get_products(access_token['token'])
     pprint.pprint(products)
 
-    cart = get_or_create_cart(access_token['token'], 'test_1')
+    # cart = get_or_create_cart(access_token['token'], 'test_1')
     # add_cart_item(access_token, cart['data']['id'],
     #               products['data'][0]['id'], 1)
 
