@@ -1,4 +1,5 @@
 import logging
+import textwrap
 from datetime import datetime
 
 from environs import Env
@@ -6,26 +7,41 @@ from telegram import Bot
 from telegram.ext import Updater, CallbackQueryHandler, MessageHandler, \
     CommandHandler, Filters, PicklePersistence
 
+import message_texts
 from logs_handler import TelegramLogsHandler
-from moltin_api import get_access_token
-from tg_lib import get_products_menu
+from moltin_api import get_access_token, get_product
+from tg_lib import get_products_menu, parse_product
 
 logger = logging.getLogger(__file__)
 
 
 def handle_start_message(update, context):
     reply_markup = get_products_menu(context.bot_data['moltin_token'])
-    update.message.reply_text(text='Please choose:',
+    update.message.reply_text(text='Please choose :',
                               reply_markup=reply_markup)
-    return 'ECHO'
+    return 'HANDLE_MENU'
 
 
-def echo(update, context):
+def handle_users_choice(update, context):
     query = update.callback_query
-    context.bot.edit_message_text(query.data,
+    moltin_token = context.bot_data['moltin_token']
+    product = get_product(moltin_token, query.data)
+    product_description = parse_product(product)
+    send_product_description(product_description, context, query)
+    return 'START'
+
+
+def send_product_description(product_description, context, query):
+    message = f'''{product_description['name']}
+
+{product_description['price']} per {product_description['weight']}kg
+{product_description['stock']}kg on stock
+
+{product_description['description']}
+'''
+    context.bot.edit_message_text(message,
                                   chat_id=query.message.chat_id,
                                   message_id=query.message.message_id)
-    return 'ECHO'
 
 
 def handle_users_reply(update, context):
@@ -58,7 +74,7 @@ def handle_users_reply(update, context):
 
     states_functions = {
         'START': handle_start_message,
-        'ECHO': echo
+        'HANDLE_MENU': handle_users_choice
     }
     state_handler = states_functions[user_state]
 
@@ -74,7 +90,7 @@ def main():
     env.read_env()
 
     logging.basicConfig(level=logging.INFO)
-    
+
     bot_token = env.str('TG_BOT_TOKEN')
     dev_bot_token = env.str('TG_DEV_BOT_TOKEN')
     tg_dev_chat_id = env.str('TG_DEV_CHAT_ID')
@@ -109,7 +125,6 @@ def main():
             'client_secret': client_secret
         }
     )
-    print(updater.dispatcher.bot_data)
 
     try:
         updater.start_polling()

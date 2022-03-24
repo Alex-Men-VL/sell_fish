@@ -27,3 +27,21 @@ def parse_products(products):
         product_id = product['id']
         products_names_with_ids[product_name] = product_id
     return products_names_with_ids
+
+
+def parse_product(product):
+    product = product['data']
+    name = product['name']
+    description = product['description']
+    price = product['meta']['display_price']['with_tax']['formatted']
+    weight = product['weight']['kg']
+    stock = product['meta']['stock']['level']
+
+    product_description = {
+        'name': name,
+        'description': description,
+        'price': price,
+        'weight': weight,
+        'stock': stock
+    }
+    return product_description
