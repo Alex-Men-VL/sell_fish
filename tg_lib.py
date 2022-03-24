@@ -36,12 +36,14 @@ def parse_product(product):
     price = product['meta']['display_price']['with_tax']['formatted']
     weight = product['weight']['kg']
     stock = product['meta']['stock']['level']
+    main_image = product['relationships'].get('main_image')
 
     product_description = {
         'name': name,
         'description': description,
         'price': price,
         'weight': weight,
-        'stock': stock
+        'stock': stock,
+        'image_id': main_image['data']['id'] if main_image else ''
     }
     return product_description

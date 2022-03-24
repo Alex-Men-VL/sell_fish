@@ -1,16 +1,28 @@
 import logging
-import textwrap
 from datetime import datetime
+from textwrap import dedent
 
 from environs import Env
-from telegram import Bot
-from telegram.ext import Updater, CallbackQueryHandler, MessageHandler, \
-    CommandHandler, Filters, PicklePersistence
+from telegram import Bot, BotCommand
+from telegram.ext import (
+    Updater,
+    CallbackQueryHandler,
+    MessageHandler,
+    CommandHandler,
+    Filters,
+    PicklePersistence
+)
 
-import message_texts
 from logs_handler import TelegramLogsHandler
-from moltin_api import get_access_token, get_product
-from tg_lib import get_products_menu, parse_product
+from moltin_api import (
+    get_access_token,
+    get_product,
+    get_product_main_image_url
+)
+from tg_lib import (
+    get_products_menu,
+    parse_product
+)
 
 logger = logging.getLogger(__file__)
 
@@ -26,22 +38,39 @@ def handle_users_choice(update, context):
     query = update.callback_query
     moltin_token = context.bot_data['moltin_token']
     product = get_product(moltin_token, query.data)
+
     product_description = parse_product(product)
-    send_product_description(product_description, context, query)
+    send_product_description(context, product_description,
+                             query.message.chat_id, query.message.message_id)
     return 'START'
 
 
-def send_product_description(product_description, context, query):
-    message = f'''{product_description['name']}
+def send_product_description(context, product_description,
+                             chat_id, message_id):
+    message = f'''\
+    {product_description['name']}
 
-{product_description['price']} per {product_description['weight']}kg
-{product_description['stock']}kg on stock
+    {product_description['price']} per {product_description['weight']} kg
+    {product_description['stock']} kg on stock
+    
+    {product_description['description']}
+    '''
 
-{product_description['description']}
-'''
-    context.bot.edit_message_text(message,
-                                  chat_id=query.message.chat_id,
-                                  message_id=query.message.message_id)
+    if image_id := product_description['image_id']:
+        context.bot.send_chat_action(chat_id=chat_id,
+                                     action='typing')
+
+        moltin_token = context.bot_data['moltin_token']
+        img_url = get_product_main_image_url(moltin_token, image_id)
+        context.bot.delete_message(chat_id=chat_id,
+                                   message_id=message_id)
+        context.bot.send_photo(chat_id=chat_id,
+                               photo=img_url,
+                               caption=dedent(message))
+    else:
+        context.bot.edit_message_text(dedent(message),
+                                      chat_id=chat_id,
+                                      message_id=message_id)
 
 
 def handle_users_reply(update, context):
@@ -124,6 +153,11 @@ def main():
             'client_id': client_id,
             'client_secret': client_secret
         }
+    )
+    updater.dispatcher.bot.delete_my_commands()
+    updater.dispatcher.bot.set_my_commands(
+        language_code='ru',
+        commands=[BotCommand('start', 'Перейти в меню')]
     )
 
     try:

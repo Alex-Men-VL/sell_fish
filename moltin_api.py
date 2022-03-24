@@ -37,6 +37,16 @@ def get_product(access_token, product_id):
     return response.json()
 
 
+def get_product_main_image_url(access_token, image_id):
+    url = f'https://api.moltin.com/v2/files/{image_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()['data']['link']['href']
+
+
 def get_or_create_cart(access_token, cart_id):
     url = f'https://api.moltin.com/v2/carts/{cart_id}'
     headers = {
