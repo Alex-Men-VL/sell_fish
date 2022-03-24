@@ -1,7 +1,9 @@
 import logging
+import pprint
 from datetime import datetime
 from textwrap import dedent
 
+import requests
 from environs import Env
 from telegram import Bot, BotCommand, InlineKeyboardButton, \
     InlineKeyboardMarkup
@@ -18,7 +20,7 @@ from logs_handler import TelegramLogsHandler
 from moltin_api import (
     get_access_token,
     get_product,
-    get_product_main_image_url
+    get_product_main_image_url, get_or_create_cart, add_cart_item
 )
 from tg_lib import (
     get_products_menu,
@@ -38,6 +40,7 @@ def handle_start(update, context):
 
 def handle_menu(update, context):
     product_id = context.user_data['user_reply']
+    context.user_data['product_id'] = product_id
     moltin_token = context.bot_data['moltin_token']
 
     product = get_product(moltin_token, product_id)
@@ -59,7 +62,13 @@ def send_product_description(context, product_description):
     message_id = context.user_data['message_id']
 
     reply_markup = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(text='Назад', callback_data='menu')]]
+        [
+            [InlineKeyboardButton(text='1 кг', callback_data='1'),
+             InlineKeyboardButton(text='5 кг', callback_data='5'),
+             InlineKeyboardButton(text='10 кг', callback_data='10')],
+
+            [InlineKeyboardButton(text='Назад', callback_data='menu')]
+        ]
     )
 
     if image_id := product_description['image_id']:
@@ -85,8 +94,11 @@ def send_product_description(context, product_description):
 def handle_description(update, context):
     chat_id = context.user_data['chat_id']
     message_id = context.user_data['message_id']
+    moltin_token = context.bot_data['moltin_token']
+    product_id = context.user_data['product_id']
+    user_reply = context.user_data['user_reply']
 
-    if context.user_data['user_reply'] == 'menu':
+    if user_reply == 'menu':
         reply_markup = context.user_data['reply_markup']
         context.bot.delete_message(chat_id=chat_id,
                                    message_id=message_id)
@@ -94,6 +106,23 @@ def handle_description(update, context):
                                  chat_id=chat_id,
                                  reply_markup=reply_markup)
         return 'HANDLE_MENU'
+    elif user_reply.isdigit():
+        users_cart = get_or_create_cart(moltin_token, chat_id)
+        try:
+            add_cart_item(moltin_token, users_cart['data']['id'],
+                          product_id, item_quantity=int(user_reply))
+        except requests.exceptions.HTTPError:
+            context.bot.answer_callback_query(
+                callback_query_id=update.callback_query.id,
+                text='Не удалось добавить товар в корзину'
+            )
+        else:
+            context.bot.answer_callback_query(
+                callback_query_id=update.callback_query.id,
+                text='Товар добавлен в корзину'
+            )
+        finally:
+            return 'HANDLE_DESCRIPTION'
 
 
 def handle_users_reply(update, context):
@@ -103,7 +132,7 @@ def handle_users_reply(update, context):
         message_id = message.message_id
     elif query := update.callback_query:
         user_reply = query.data
-        chat_id = query.chat_id
+        chat_id = query.message.chat_id
         message_id = query.message.message_id
     else:
         return
