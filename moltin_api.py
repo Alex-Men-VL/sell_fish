@@ -90,7 +90,6 @@ def remove_cart_item(access_token, cart_id, item_id):
         'Authorization': f'Bearer {access_token}'
     }
     response = requests.delete(url, headers=headers)
-    response.raise_for_status()
     return response.ok
 
 
