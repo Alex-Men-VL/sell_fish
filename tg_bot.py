@@ -193,22 +193,43 @@ def handle_cart(update, context):
     if user_reply == 'menu':
         sand_main_menu(context, chat_id, message_id)
         return 'HANDLE_MENU'
-    elif user_reply.find('-'):
-        item_removed = remove_cart_item(moltin_token, chat_id, user_reply)
-        if item_removed:
-            context.bot.answer_callback_query(
-                callback_query_id=update.callback_query.id,
-                text='Товар удален из корзины'
-            )
-            user_cart = get_cart_items(moltin_token, chat_id)
-            cart_description = parse_cart(user_cart)
-            send_cart_description(context, cart_description)
-        else:
-            context.bot.answer_callback_query(
-                callback_query_id=update.callback_query.id,
-                text='Товар не может быть удален из корзины'
-            )
-        return 'HANDLE_CART'
+    elif user_reply == 'pay':
+        message = 'Пожалуйста, напишите свою почту для связи с вами'
+        context.bot.send_message(text=message,
+                                 chat_id=chat_id)
+        return 'WAITING_EMAIL'
+
+    item_removed = remove_cart_item(moltin_token, chat_id, user_reply)
+    if item_removed:
+        context.bot.answer_callback_query(
+            callback_query_id=update.callback_query.id,
+            text='Товар удален из корзины'
+        )
+        user_cart = get_cart_items(moltin_token, chat_id)
+        cart_description = parse_cart(user_cart)
+        send_cart_description(context, cart_description)
+    else:
+        context.bot.answer_callback_query(
+            callback_query_id=update.callback_query.id,
+            text='Товар не может быть удален из корзины'
+        )
+    return 'HANDLE_CART'
+
+
+def handle_email(update, context):
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+    user_email = context.user_data['user_reply']
+
+    email_pattern = r'(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)'
+    if re.fullmatch(email_pattern, user_email):
+        message = f'Вы ввели эту почту: {user_email}'
+        update.message.reply_text(text=message)
+
+    else:
+        message = 'Почта указана не верно. Отправьте почту еще раз.'
+        update.message.reply_text(text=message)
+        return 'WAITING_EMAIL'
 
 
 def handle_users_reply(update, context):
@@ -253,7 +274,8 @@ def handle_users_reply(update, context):
         'START': handle_start,
         'HANDLE_MENU': handle_menu,
         'HANDLE_DESCRIPTION': handle_description,
-        'HANDLE_CART': handle_cart
+        'HANDLE_CART': handle_cart,
+        'WAITING_EMAIL': handle_email
     }
     state_handler = states_functions[user_state]
 
