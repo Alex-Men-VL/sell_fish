@@ -159,7 +159,7 @@ def handle_description(update, context):
     elif user_reply.isdigit():
         user_cart = get_or_create_cart(moltin_token, chat_id)
         try:
-            add_cart_item(moltin_token, chat_id,
+            add_cart_item(moltin_token, user_cart['data']['id'],
                           product_id, item_quantity=int(user_reply))
         except requests.exceptions.HTTPError:
             context.bot.answer_callback_query(
