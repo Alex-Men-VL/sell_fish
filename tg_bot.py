@@ -264,15 +264,15 @@ def handle_users_reply(update, context):
         }
     )
 
-    moltin_token_expiration = context.bot_data['token_expiration']
-    if moltin_token_expiration <= datetime.timestamp(datetime.now()):
+    if (not (token_expiration := context.bot_data.get('token_expiration')) or
+            token_expiration <= datetime.timestamp(datetime.now())):
         moltin_access_token = get_access_token(
             context.bot_data['client_id'],
             context.bot_data['client_secret']
         )
         context.bot_data.update(
             {
-                'moltin_token': moltin_access_token['token'],
+                'moltin_token': moltin_access_token['access_token'],
                 'token_expiration': moltin_access_token['expires'],
             }
         )
@@ -329,11 +329,8 @@ def main():
         CommandHandler('start', handle_users_reply)
     )
 
-    moltin_access_token = get_access_token(client_id, client_secret)
     updater.dispatcher.bot_data.update(
         {
-            'moltin_token': moltin_access_token['token'],
-            'token_expiration': moltin_access_token['expires'],
             'client_id': client_id,
             'client_secret': client_secret
         }

@@ -12,9 +12,8 @@ def get_access_token(client_id, client_secret):
         'grant_type': 'client_credentials'
     }
     response = requests.post(url, data=payload)
-    token_description = response.json()
-    return {'token': token_description['access_token'],
-            'expires': token_description['expires']}
+    response.raise_for_status()
+    return response.json()
 
 
 def get_products(access_token):
@@ -124,7 +123,6 @@ def get_customer(access_token, customer_id):
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
-
 
 
 def main():
