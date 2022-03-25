@@ -120,12 +120,12 @@ def send_product_description(context, product_description):
         moltin_token = context.bot_data['moltin_token']
         img_url = get_product_main_image_url(moltin_token, image_id)
 
-        context.bot.delete_message(chat_id=chat_id,
-                                   message_id=message_id)
         context.bot.send_photo(chat_id=chat_id,
                                photo=img_url,
                                caption=dedent(message),
                                reply_markup=reply_markup)
+        context.bot.delete_message(chat_id=chat_id,
+                                   message_id=message_id)
     else:
         context.bot.edit_message_text(text=dedent(message),
                                       chat_id=chat_id,
@@ -135,8 +135,8 @@ def send_product_description(context, product_description):
 
 def send_main_menu(context, chat_id, message_id):
     reply_markup = context.user_data['reply_markup']
-    context.bot.delete_message(chat_id=chat_id,
-                               message_id=message_id)
     context.bot.send_message(text='Please choose:',
                              chat_id=chat_id,
                              reply_markup=reply_markup)
+    context.bot.delete_message(chat_id=chat_id,
+                               message_id=message_id)
