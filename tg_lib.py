@@ -51,6 +51,7 @@ def parse_cart(cart):
     cart_description = []
 
     for cart_item in cart['data']:
+        item_id = cart_item['id']
         item_name = cart_item['name']
         item_description = cart_item['description']
         item_quantity = cart_item['quantity']
@@ -59,6 +60,7 @@ def parse_cart(cart):
         item_value_price = item_price['value']['formatted']
 
         cart_item_description = {
+            'id': item_id,
             'name': item_name,
             'description': item_description,
             'quantity': item_quantity,

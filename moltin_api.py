@@ -88,6 +88,16 @@ def add_cart_item(access_token, cart_id, item_id, item_quantity):
     return response.json()
 
 
+def remove_cart_item(access_token, cart_id, item_id):
+    url = f'https://api.moltin.com/v2/carts/{cart_id}/items/{item_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = requests.delete(url, headers=headers)
+    response.raise_for_status()
+    return response.ok
+
+
 def main():
     env = Env()
     env.read_env()

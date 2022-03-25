@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime
 from textwrap import dedent
 
@@ -26,7 +27,8 @@ from moltin_api import (
     get_product_main_image_url,
     get_or_create_cart,
     add_cart_item,
-    get_cart_items
+    get_cart_items,
+    remove_cart_item
 )
 from tg_lib import (
     get_products_menu,
@@ -71,6 +73,7 @@ def send_cart_description(context, cart_description):
         )
     else:
         message = ''
+        buttons = []
         for item in items:
             message += f'''
             {item['name']}
@@ -78,13 +81,20 @@ def send_cart_description(context, cart_description):
             {item['quantity']}kg in cart for {item['value_price']}
             
             '''
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f'Убрать из корзины {item["name"]}',
+                    callback_data=item['id']
+                )
+            ])
         message += f'Total cart price: {cart_description["total_price"]}'
-        reply_markup = InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton(text='Оплатить', callback_data='pay')],
-                [InlineKeyboardButton(text='В меню', callback_data='menu')]
-            ]
+        buttons.append(
+            [InlineKeyboardButton(text='Оплатить', callback_data='pay')]
         )
+        buttons.append(
+            [InlineKeyboardButton(text='В меню', callback_data='menu')]
+        )
+        reply_markup = InlineKeyboardMarkup(buttons)
 
     chat_id = context.user_data['chat_id']
     message_id = context.user_data['message_id']
@@ -149,7 +159,7 @@ def handle_description(update, context):
     elif user_reply.isdigit():
         user_cart = get_or_create_cart(moltin_token, chat_id)
         try:
-            add_cart_item(moltin_token, user_cart['data']['id'],
+            add_cart_item(moltin_token, chat_id,
                           product_id, item_quantity=int(user_reply))
         except requests.exceptions.HTTPError:
             context.bot.answer_callback_query(
@@ -178,10 +188,27 @@ def handle_cart(update, context):
     chat_id = context.user_data['chat_id']
     message_id = context.user_data['message_id']
     user_reply = context.user_data['user_reply']
+    moltin_token = context.bot_data['moltin_token']
 
     if user_reply == 'menu':
         sand_main_menu(context, chat_id, message_id)
         return 'HANDLE_MENU'
+    elif user_reply.find('-'):
+        item_removed = remove_cart_item(moltin_token, chat_id, user_reply)
+        if item_removed:
+            context.bot.answer_callback_query(
+                callback_query_id=update.callback_query.id,
+                text='Товар удален из корзины'
+            )
+            user_cart = get_cart_items(moltin_token, chat_id)
+            cart_description = parse_cart(user_cart)
+            send_cart_description(context, cart_description)
+        else:
+            context.bot.answer_callback_query(
+                callback_query_id=update.callback_query.id,
+                text='Товар не может быть удален из корзины'
+            )
+        return 'HANDLE_CART'
 
 
 def handle_users_reply(update, context):
