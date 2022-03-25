@@ -1,4 +1,5 @@
 import logging
+import pprint
 import re
 from datetime import datetime
 from textwrap import dedent
@@ -28,7 +29,7 @@ from moltin_api import (
     get_or_create_cart,
     add_cart_item,
     get_cart_items,
-    remove_cart_item
+    remove_cart_item, create_customer
 )
 from tg_lib import (
     get_products_menu,
@@ -218,18 +219,29 @@ def handle_cart(update, context):
 
 def handle_email(update, context):
     chat_id = context.user_data['chat_id']
-    message_id = context.user_data['message_id']
     user_email = context.user_data['user_reply']
+    moltin_token = context.bot_data['moltin_token']
 
     email_pattern = r'(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)'
-    if re.fullmatch(email_pattern, user_email):
-        message = f'Вы ввели эту почту: {user_email}'
-        update.message.reply_text(text=message)
-
-    else:
+    if not re.fullmatch(email_pattern, user_email):
         message = 'Почта указана не верно. Отправьте почту еще раз.'
         update.message.reply_text(text=message)
         return 'WAITING_EMAIL'
+
+    if not context.bot_data.get('customers'):
+        context.bot_data['customers'] = {}
+
+    if not context.bot_data['customers'].get(chat_id):
+        customer = create_customer(moltin_token, user_email)
+        context.bot_data['customers'][chat_id] = customer['data']['id']
+    message = f'Вы ввели эту почту: {user_email}'
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(text='В меню', callback_data='menu')]
+        ]
+    )
+    update.message.reply_text(text=message, reply_markup=reply_markup)
+    return 'HANDLE_CART'
 
 
 def handle_users_reply(update, context):

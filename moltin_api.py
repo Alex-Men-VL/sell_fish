@@ -53,7 +53,6 @@ def get_or_create_cart(access_token, cart_id):
         'Authorization': f'Bearer {access_token}',
         'X-MOLTIN-CURRENCY': 'USD'
     }
-
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
@@ -96,6 +95,36 @@ def remove_cart_item(access_token, cart_id, item_id):
     response = requests.delete(url, headers=headers)
     response.raise_for_status()
     return response.ok
+
+
+def create_customer(access_token, email):
+    url = 'https://api.moltin.com/v2/customers'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+
+    customer = {
+        'data': {
+            'type': 'customer',
+            'name': email.split('@')[0],
+            'email': email,
+        },
+    }
+
+    response = requests.post(url, headers=headers, json=customer)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_customer(access_token, customer_id):
+    url = f'https://api.moltin.com/v2/customers/{customer_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
 
 
 def main():
