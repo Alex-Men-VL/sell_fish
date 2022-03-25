@@ -1,5 +1,4 @@
 import logging
-import pprint
 import re
 from datetime import datetime
 from textwrap import dedent
