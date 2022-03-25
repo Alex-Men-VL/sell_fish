@@ -82,7 +82,7 @@ def send_cart_description(context, cart_description):
         reply_markup = InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton(text='Оплатить', callback_data='pay')],
-                [InlineKeyboardButton(text='Назад', callback_data='menu')]
+                [InlineKeyboardButton(text='В меню', callback_data='menu')]
             ]
         )
 
@@ -112,7 +112,7 @@ def send_product_description(context, product_description):
              InlineKeyboardButton(text='5 кг', callback_data='5'),
              InlineKeyboardButton(text='10 кг', callback_data='10')],
 
-            [InlineKeyboardButton(text='Назад', callback_data='menu')]
+            [InlineKeyboardButton(text='В меню', callback_data='menu')]
         ]
     )
 
