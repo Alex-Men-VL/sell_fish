@@ -34,7 +34,7 @@ from tg_lib import (
     parse_cart,
     send_cart_description,
     send_product_description,
-    sand_main_menu
+    send_main_menu
 )
 
 logger = logging.getLogger(__file__)
@@ -87,7 +87,7 @@ def handle_description(update, context):
     user_reply = context.user_data['user_reply']
 
     if user_reply == 'menu':
-        sand_main_menu(context, chat_id, message_id)
+        send_main_menu(context, chat_id, message_id)
         return 'HANDLE_MENU'
     elif user_reply.isdigit():
         user_cart = get_or_create_cart(moltin_token, chat_id)
@@ -114,7 +114,7 @@ def handle_cart(update, context):
     moltin_token = context.bot_data['moltin_token']
 
     if user_reply == 'menu':
-        sand_main_menu(context, chat_id, message_id)
+        send_main_menu(context, chat_id, message_id)
         return 'HANDLE_MENU'
     elif user_reply == 'pay':
         message = 'Пожалуйста, напишите свою почту для связи с вами'

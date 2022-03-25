@@ -133,7 +133,7 @@ def send_product_description(context, product_description):
                                       reply_markup=reply_markup)
 
 
-def sand_main_menu(context, chat_id, message_id):
+def send_main_menu(context, chat_id, message_id):
     reply_markup = context.user_data['reply_markup']
     context.bot.delete_message(chat_id=chat_id,
                                message_id=message_id)
