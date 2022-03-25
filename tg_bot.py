@@ -32,7 +32,6 @@ from moltin_api import (
 )
 from tg_lib import (
     get_products_menu,
-    parse_product,
     parse_cart
 )
 
@@ -61,7 +60,19 @@ def handle_menu(update, context):
     context.user_data['product_id'] = user_reply
 
     product = get_product(moltin_token, user_reply)
-    product_description = parse_product(product)
+    product_main_image = product['relationships'].get('main_image')
+
+    product_description = {
+        'name': product['data']['name'],
+        'description': product['data']['description'],
+        'price': product['data']['meta']['display_price']['with_tax'][
+            'formatted'
+        ],
+        'stock': product['data']['meta']['stock']['level'],
+        'image_id': product_main_image['data']['id'] if product_main_image
+        else ''
+    }
+
     send_product_description(context, product_description)
     return 'HANDLE_DESCRIPTION'
 
