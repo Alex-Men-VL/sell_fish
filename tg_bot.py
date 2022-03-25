@@ -50,23 +50,25 @@ def handle_start(update, context):
 def handle_menu(update, context):
     moltin_token = context.bot_data['moltin_token']
     chat_id = context.user_data['chat_id']
+    user_reply = context.user_data['user_reply']
 
-    if (user_reply := context.user_data['user_reply']) == 'cart':
+    if user_reply == 'cart':
         user_cart = get_cart_items(moltin_token, chat_id)
         cart_description = parse_cart(user_cart)
         send_cart_description(context, cart_description)
         return 'HANDLE_CART'
-    else:
-        context.user_data['product_id'] = user_reply
 
-        product = get_product(moltin_token, user_reply)
-        product_description = parse_product(product)
-        send_product_description(context, product_description)
-        return 'HANDLE_DESCRIPTION'
+    context.user_data['product_id'] = user_reply
+
+    product = get_product(moltin_token, user_reply)
+    product_description = parse_product(product)
+    send_product_description(context, product_description)
+    return 'HANDLE_DESCRIPTION'
 
 
 def send_cart_description(context, cart_description):
-    if not (items := cart_description['cart_description']):
+    cart_items = cart_description['cart_description']
+    if not cart_items:
         message = 'Корзина пуста'
         reply_markup = InlineKeyboardMarkup(
             [[InlineKeyboardButton(text='Назад', callback_data='menu')]]
@@ -74,7 +76,7 @@ def send_cart_description(context, cart_description):
     else:
         message = ''
         buttons = []
-        for item in items:
+        for item in cart_items:
             message += f'''
             {item['name']}
             {item['unit_price']} per kg
@@ -171,8 +173,7 @@ def handle_description(update, context):
                 callback_query_id=update.callback_query.id,
                 text='Товар добавлен в корзину'
             )
-        finally:
-            return 'HANDLE_DESCRIPTION'
+    return 'HANDLE_DESCRIPTION'
 
 
 def sand_main_menu(context, chat_id, message_id):
