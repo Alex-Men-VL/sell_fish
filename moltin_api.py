@@ -55,7 +55,16 @@ def get_or_create_cart(access_token, cart_id):
     }
 
     response = requests.get(url, headers=headers)
-    pprint.pprint(response.json())
+    response.raise_for_status()
+    return response.json()
+
+
+def get_cart_items(access_token, cart_id):
+    url = f'https://api.moltin.com/v2/carts/{cart_id}/items'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
 
@@ -76,7 +85,6 @@ def add_cart_item(access_token, cart_id, item_id, item_quantity):
     }
     response = requests.post(url, headers=headers, json=cart_item)
     response.raise_for_status()
-    pprint.pprint(response.json())
     return response.json()
 
 
@@ -89,9 +97,11 @@ def main():
     access_token = get_access_token(client_id, client_secret)
     # print(access_token['token'])
     products = get_products(access_token['token'])
-    pprint.pprint(get_product(access_token['token'], products['data'][0]['id']))
+    # pprint.pprint(get_product(access_token['token'], products['data'][0]['id']))
 
-    # cart = get_or_create_cart(access_token['token'], 'test_1')
+    cart = get_or_create_cart(access_token['token'], '154383987')
+    pprint.pprint(cart)
+    pprint.pprint(get_cart_items(access_token['token'], '154383987'))
     # add_cart_item(access_token, cart['data']['id'],
     #               products['data'][0]['id'], 1)
 

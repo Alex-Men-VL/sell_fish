@@ -1,12 +1,15 @@
 import logging
-import pprint
 from datetime import datetime
 from textwrap import dedent
 
 import requests
 from environs import Env
-from telegram import Bot, BotCommand, InlineKeyboardButton, \
+from telegram import (
+    Bot,
+    BotCommand,
+    InlineKeyboardButton,
     InlineKeyboardMarkup
+)
 from telegram.ext import (
     Updater,
     CallbackQueryHandler,
@@ -20,11 +23,15 @@ from logs_handler import TelegramLogsHandler
 from moltin_api import (
     get_access_token,
     get_product,
-    get_product_main_image_url, get_or_create_cart, add_cart_item
+    get_product_main_image_url,
+    get_or_create_cart,
+    add_cart_item,
+    get_cart_items
 )
 from tg_lib import (
     get_products_menu,
-    parse_product
+    parse_product,
+    parse_cart
 )
 
 logger = logging.getLogger(__file__)
@@ -39,21 +46,59 @@ def handle_start(update, context):
 
 
 def handle_menu(update, context):
-    product_id = context.user_data['user_reply']
-    context.user_data['product_id'] = product_id
     moltin_token = context.bot_data['moltin_token']
+    chat_id = context.user_data['chat_id']
 
-    product = get_product(moltin_token, product_id)
-    product_description = parse_product(product)
-    send_product_description(context, product_description)
-    return 'HANDLE_DESCRIPTION'
+    if (user_reply := context.user_data['user_reply']) == 'cart':
+        user_cart = get_cart_items(moltin_token, chat_id)
+        cart_description = parse_cart(user_cart)
+        send_cart_description(context, cart_description)
+        return 'HANDLE_CART'
+    else:
+        context.user_data['product_id'] = user_reply
+
+        product = get_product(moltin_token, user_reply)
+        product_description = parse_product(product)
+        send_product_description(context, product_description)
+        return 'HANDLE_DESCRIPTION'
+
+
+def send_cart_description(context, cart_description):
+    if not (items := cart_description['cart_description']):
+        message = 'Корзина пуста'
+        reply_markup = InlineKeyboardMarkup(
+            [[InlineKeyboardButton(text='Назад', callback_data='menu')]]
+        )
+    else:
+        message = ''
+        for item in items:
+            message += f'''
+            {item['name']}
+            {item['unit_price']} per kg
+            {item['quantity']}kg in cart for {item['value_price']}
+            
+            '''
+        message += f'Total cart price: {cart_description["total_price"]}'
+        reply_markup = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton(text='Оплатить', callback_data='pay')],
+                [InlineKeyboardButton(text='Назад', callback_data='menu')]
+            ]
+        )
+
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+    context.bot.edit_message_text(text=dedent(message),
+                                  chat_id=chat_id,
+                                  message_id=message_id,
+                                  reply_markup=reply_markup)
 
 
 def send_product_description(context, product_description):
     message = f'''\
     {product_description['name']}
 
-    {product_description['price']} per {product_description['weight']} kg
+    {product_description['price']} per kg
     {product_description['stock']} kg on stock
     
     {product_description['description']}
@@ -99,17 +144,12 @@ def handle_description(update, context):
     user_reply = context.user_data['user_reply']
 
     if user_reply == 'menu':
-        reply_markup = context.user_data['reply_markup']
-        context.bot.delete_message(chat_id=chat_id,
-                                   message_id=message_id)
-        context.bot.send_message(text='Please choose:',
-                                 chat_id=chat_id,
-                                 reply_markup=reply_markup)
+        sand_main_menu(context, chat_id, message_id)
         return 'HANDLE_MENU'
     elif user_reply.isdigit():
-        users_cart = get_or_create_cart(moltin_token, chat_id)
+        user_cart = get_or_create_cart(moltin_token, chat_id)
         try:
-            add_cart_item(moltin_token, users_cart['data']['id'],
+            add_cart_item(moltin_token, user_cart['data']['id'],
                           product_id, item_quantity=int(user_reply))
         except requests.exceptions.HTTPError:
             context.bot.answer_callback_query(
@@ -123,6 +163,25 @@ def handle_description(update, context):
             )
         finally:
             return 'HANDLE_DESCRIPTION'
+
+
+def sand_main_menu(context, chat_id, message_id):
+    reply_markup = context.user_data['reply_markup']
+    context.bot.delete_message(chat_id=chat_id,
+                               message_id=message_id)
+    context.bot.send_message(text='Please choose:',
+                             chat_id=chat_id,
+                             reply_markup=reply_markup)
+
+
+def handle_cart(update, context):
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+    user_reply = context.user_data['user_reply']
+
+    if user_reply == 'menu':
+        sand_main_menu(context, chat_id, message_id)
+        return 'HANDLE_MENU'
 
 
 def handle_users_reply(update, context):
@@ -166,7 +225,8 @@ def handle_users_reply(update, context):
     states_functions = {
         'START': handle_start,
         'HANDLE_MENU': handle_menu,
-        'HANDLE_DESCRIPTION': handle_description
+        'HANDLE_DESCRIPTION': handle_description,
+        'HANDLE_CART': handle_cart
     }
     state_handler = states_functions[user_state]
 
