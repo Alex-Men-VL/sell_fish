@@ -43,11 +43,11 @@ def get_product_main_image_url(access_token, image_id):
     return response.json()['data']['link']['href']
 
 
-def get_or_create_cart(access_token, cart_id):
+def get_or_create_cart(access_token, cart_id, currency='USD'):
     url = f'https://api.moltin.com/v2/carts/{cart_id}'
     headers = {
         'Authorization': f'Bearer {access_token}',
-        'X-MOLTIN-CURRENCY': 'USD'
+        'X-MOLTIN-CURRENCY': currency
     }
     response = requests.get(url, headers=headers)
     response.raise_for_status()
@@ -64,11 +64,12 @@ def get_cart_items(access_token, cart_id):
     return response.json()
 
 
-def add_cart_item(access_token, cart_id, item_id, item_quantity):
+def add_cart_item(access_token, cart_id, item_id,
+                  item_quantity, currency='USD'):
     url = f'https://api.moltin.com/v2/carts/{cart_id}/items'
     headers = {
         'Authorization': f'Bearer {access_token}',
-        'X-MOLTIN-CURRENCY': 'USD'
+        'X-MOLTIN-CURRENCY': currency
     }
 
     cart_item = {
@@ -93,7 +94,7 @@ def remove_cart_item(access_token, cart_id, item_id):
     return response.ok
 
 
-def create_customer(access_token, email):
+def create_customer(access_token, email, name=None):
     url = 'https://api.moltin.com/v2/customers'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -102,7 +103,7 @@ def create_customer(access_token, email):
     customer = {
         'data': {
             'type': 'customer',
-            'name': email.split('@')[0],
+            'name': name if name else email.split('@')[0],
             'email': email,
         },
     }
